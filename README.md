@@ -42,11 +42,11 @@ Esta herramienta permite a los usuarios realizar las siguientes operaciones:
 
 Sigue estos pasos para ejecutar la aplicación en tu máquina local.
 
-1.  **Clona el repositorio** (o simplemente descarga el archivo `.py`):
+1.  **Clona el repositorio** (o simplemente descarga el archivo `s1.py`):
 
     ```bash
-    git clone https://github.com/21Rulo/tu-repositorio.git
-    cd tu-repositorio
+    git clone https://github.com/21Rulo/Practica1-AI.git
+    cd p1
     ```
 
 2.  **Crea un entorno virtual** (recomendado para mantener las dependencias aisladas):
