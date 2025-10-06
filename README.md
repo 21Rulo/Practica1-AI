@@ -8,6 +8,10 @@ Esta herramienta permite a los usuarios realizar las siguientes operaciones:
 
   * **Carga de Imágenes**: Soporta los formatos de imagen más comunes (`.jpg`, `.png`, `.bmp`.).
   * **Visualización de Canales RGB**: Separa una imagen a color en sus componentes Rojo, Verde y Azul y los muestra individualmente.
+  * **Visualización de Canales CMY**: Muestra los tres canales del modelo sustractivo (Cian, Magenta, Amarillo), que son el inverso del RGB.
+  * **Visualización de Canales HSV**: Descompone la imagen en Tono (el color puro), Saturación (la pureza del color) y Valor (el brillo).
+  * **Visualización de Canales YIQ**: Separa la imagen en Luminancia (Y, el brillo en blanco y negro) y dos canales de Crominancia (I y Q, la información de color).
+  * **Visualización de Canales HSI**: Similar a HSV, descompone la imagen en Tono, Saturación e Intensidad (el brillo promedio).
   * **Conversión a Escala de Grises**: Transforma la imagen original a su representación en escala de grises.
   * **Binarización de Imágenes**: Convierte una imagen en escala de grises a una imagen binaria (blanco y negro) usando un umbral fijo.
   * **Análisis de Histogramas**: Genera y visualiza histogramas de color para:
@@ -15,7 +19,7 @@ Esta herramienta permite a los usuarios realizar las siguientes operaciones:
       * Cada canal RGB por separado.
       * La imagen en escala de grises.
       * La imagen binarizada.
-  * **Cálculo de Características Estadísticas**: Extrae métricas clave de la imagen actual (ya sea RGB, grises o binaria):
+  * **Cálculo de Características Estadísticas**: Extrae métricas clave de la imagen actual:
       * **Energía**: Medida de la uniformidad de la imagen.
       * **Entropía**: Medida de la aleatoriedad o información en la imagen.
       * **Asimetría (Skewness)**: Indica si la distribución de intensidades está sesgada.
@@ -93,17 +97,21 @@ Sigue estos pasos para ejecutar la aplicación en tu máquina local.
 3.  **Aplicar Transformaciones**:
 
       * **"Separar Canales RGB"**: Muestra los tres canales de color.
+      "Separar Canales CMY": Muestra los tres canales del modelo sustractivo (Cian, Magenta, Amarillo), que son el inverso del RGB.
+      * **"Separar Canales HSV"**: Descompone la imagen en Tono (el color puro), Saturación (la pureza del color) y Valor (el brillo).
+      * **"Separar Canales YIQ"**: Separa la imagen en Luminancia (Y, el brillo en blanco y negro) y dos canales de Crominancia (I y Q, la información de color).
+      * **"Separar Canales HSI"**: Similar a HSV, descompone la imagen en Tono, Saturación e Intensidad (el brillo promedio).
       * **"Escala de Grises"**: Convierte la imagen original a grises.
       * **"Binarizar Imagen"**: Convierte la imagen en escala de grises a blanco y negro. Debes pasar a escala de grises primero.
 
 4.  **Analizar la Imagen**:
 
-      * **"Histograma"**: Muestra el histograma correspondiente a la vista actual (RGB, grises, etc.).
+      * **"Histograma"**: Muestra el histograma correspondiente a la vista actual.
       * **"Características"**: Abre una nueva ventana con las métricas estadísticas de la imagen actual y ofrece una breve interpretación.
 
 5.  **Guardar y Exportar**:
 
-      * **"Guardar Actual"**: Guarda la imagen que se está mostrando. Si estás viendo los canales RGB, guardará los 3 canales como archivos separados (`_R.png`, `_G.png`, `_B.png`).
+      * **"Guardar Actual"**: Guarda la imagen que se está mostrando.
 
 6.  **Revertir**: Si en cualquier momento quieres volver a la imagen original, haz clic en **"Revertir"**.
 
