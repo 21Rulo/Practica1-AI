@@ -571,6 +571,7 @@ class MatplotlibApp:
         # Sistema de historial de operaciones
         self.imagen_trabajo_actual = None
         self.historial_operaciones = []
+        self.historial_imagenes = []
         
         # Frame principal dividido
         main_container = ttk.Frame(root)
@@ -702,10 +703,13 @@ class MatplotlibApp:
         self.imagen_trabajo_actual = None
         self.historial_operaciones = []
         self.actualizar_texto_historial()
+        self.historial_imagenes = []
 
     def agregar_a_historial(self, operacion):
         """Agrega una operación al historial."""
         self.historial_operaciones.append(operacion)
+        if self.imagen_trabajo_actual is not None:
+            self.historial_imagenes.append(self.imagen_trabajo_actual.copy())
         self.actualizar_texto_historial()
     
     def actualizar_texto_historial(self):
@@ -723,28 +727,40 @@ class MatplotlibApp:
         self.historial_text.see(tk.END)
     
     def revertir_ultima_operacion(self):
-        """Revierte la última operación morfológica aplicada."""
+        """Revierte la última operación aplicada, paso por paso."""
         if not self.historial_operaciones:
             messagebox.showinfo("Info", "No hay operaciones para revertir.")
             return
         
         # Remover última operación
-        self.historial_operaciones.pop()
+        operacion_eliminada = self.historial_operaciones.pop()
+    
+        # Eliminar última imagen guardada
+        if self.historial_imagenes:
+            self.historial_imagenes.pop()
         
+        # Restaurar estado anterior
         if not self.historial_operaciones:
-            # Si no quedan operaciones, volver a la imagen base
+            # Volver a imagen base (grises o binaria)
             if self.binary_image_cv is not None:
                 self.imagen_trabajo_actual = self.binary_image_cv.copy()
             elif self.grayscale_image_cv is not None:
                 self.imagen_trabajo_actual = self.grayscale_image_cv.copy()
-            messagebox.showinfo("Revertido", "Se revirtió a la imagen base.")
+            estado = "imagen base"
         else:
-            # Volver a aplicar todas las operaciones menos la última
-            messagebox.showinfo("Info", "Para revertir múltiples pasos, usa 'Revertir a Original' y reaplica las operaciones deseadas.")
-            return
+            # Restaurar penúltima imagen
+            if self.historial_imagenes:
+                self.imagen_trabajo_actual = self.historial_imagenes[-1].copy()
+            estado = self.historial_operaciones[-1]
         
+        # Actualizar visualización
+        self.morphology_result = self.imagen_trabajo_actual.copy()
         self.actualizar_texto_historial()
         self._mostrar_imagen_actual()
+        
+        messagebox.showinfo("Revertido", 
+                        f"✓ Operación revertida: {operacion_eliminada}\n"
+                        f"→ Ahora estás en: {estado}")
 
     def _preparar_lienzo_unico(self):
         self.fig.clear()
@@ -1460,7 +1476,7 @@ class MatplotlibApp:
         ttk.Button(button_frame, text="Cancelar", 
                    command=dialog.destroy).pack(side=tk.LEFT, padx=5)
 
-    def abrir_dialogo_binarizacion(self):
+
         """Diálogo para seleccionar umbral de binarización."""
         dialog = tk.Toplevel(self.root)
         dialog.title("Configuración - Binarizar")
@@ -1490,9 +1506,202 @@ class MatplotlibApp:
         ttk.Button(button_frame, text="Cancelar", 
                    command=dialog.destroy).pack(side=tk.LEFT, padx=5)
 
+    def abrir_dialogo_binarizacion(self):
+        """Diálogo para seleccionar umbral de binarización con vista previa en tiempo real."""
+        
+        # Determinar imagen a binarizar
+        imagen_a_binarizar = None
+        if self.imagen_trabajo_actual is not None:
+            imagen_a_binarizar = self.imagen_trabajo_actual
+        elif self.grayscale_image_cv is not None:
+            imagen_a_binarizar = self.grayscale_image_cv
+        else:
+            messagebox.showerror("Error", "No hay imagen en escala de grises para binarizar.")
+            return
+        
+        # Crear ventana de diálogo
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Binarización Interactiva")
+        dialog.geometry("850x550")  # Tamaño fijo más pequeño
+        dialog.transient(self.root)
+        dialog.grab_set()
+        dialog.resizable(True, True)  # Permitir redimensionar si quiere
+        
+        # **NUEVO: Frame principal con Canvas y Scrollbar**
+        main_container = ttk.Frame(dialog)
+        main_container.pack(fill=tk.BOTH, expand=True)
+        
+        # Canvas para scroll
+        canvas_scroll = tk.Canvas(main_container, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(main_container, orient=tk.VERTICAL, command=canvas_scroll.yview)
+        
+        # Frame scrollable
+        scrollable_frame = ttk.Frame(canvas_scroll)
+        
+        # Configurar scroll
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas_scroll.configure(scrollregion=canvas_scroll.bbox("all"))
+        )
+        
+        canvas_scroll.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas_scroll.configure(yscrollcommand=scrollbar.set)
+        
+        # Empaquetar canvas y scrollbar
+        canvas_scroll.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # **HABILITAR SCROLL CON RUEDA DEL MOUSE**
+        def _on_mousewheel(event):
+            canvas_scroll.yview_scroll(int(-1*(event.delta/120)), "units")
+        
+        canvas_scroll.bind_all("<MouseWheel>", _on_mousewheel)
+        
+        # Frame de contenido (ahora dentro del scrollable_frame)
+        main_frame = ttk.Frame(scrollable_frame, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Título
+        ttk.Label(main_frame, text="Ajustar Umbral de Binarización", 
+                font=('Arial', 12, 'bold')).pack(pady=(0, 10))
+        
+        # Frame para la visualización
+        preview_frame = ttk.Frame(main_frame)
+        preview_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        
+        # Crear figura de matplotlib para vista previa
+        from matplotlib.figure import Figure
+        from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+        
+        fig_preview = Figure(figsize=(8, 3.5), dpi=90)  # Más pequeño
+        canvas_preview = FigureCanvasTkAgg(fig_preview, master=preview_frame)
+        canvas_preview.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        
+        # Frame para controles
+        control_frame = ttk.Frame(main_frame)
+        control_frame.pack(fill=tk.X, pady=10)
+        
+        # Variable para el umbral
+        umbral_var = tk.IntVar(value=128)
+        
+        # Label que muestra el valor actual
+        valor_label = ttk.Label(control_frame, text=f"Umbral: {umbral_var.get()}", 
+                                font=('Arial', 11, 'bold'))
+        valor_label.pack(pady=(0, 5))
+        
+        # Función para actualizar la vista previa
+        def actualizar_preview(valor):
+            umbral = int(float(valor))
+            valor_label.config(text=f"Umbral: {umbral}")
+            
+            # Aplicar binarización
+            _, img_binaria = cv2.threshold(imagen_a_binarizar, umbral, 255, cv2.THRESH_BINARY)
+            
+            # Actualizar visualización
+            fig_preview.clear()
+            ax1, ax2 = fig_preview.subplots(1, 2)
+            
+            # Imagen original en grises
+            ax1.imshow(imagen_a_binarizar, cmap='gray')
+            ax1.set_title('Original', fontsize=9)
+            ax1.axis('off')
+            
+            # Imagen binarizada
+            ax2.imshow(img_binaria, cmap='gray')
+            ax2.set_title(f'Binarizada (Umbral={umbral})', fontsize=9)
+            ax2.axis('off')
+            
+            fig_preview.tight_layout()
+            canvas_preview.draw()
+        
+        # Slider para el umbral
+        slider = tk.Scale(
+            control_frame, 
+            from_=0, 
+            to=255, 
+            orient="horizontal",
+            variable=umbral_var,
+            command=actualizar_preview,
+            length=500,
+            width=18,
+            sliderlength=25,
+            font=('Arial', 9)
+        )
+        slider.pack(fill=tk.X, padx=20, pady=5)
+        
+        # Labels de referencia
+        ref_frame = ttk.Frame(control_frame)
+        ref_frame.pack(fill=tk.X, padx=20)
+        
+        ttk.Label(ref_frame, text="0 (Oscuro)", font=('Arial', 8)).pack(side=tk.LEFT)
+        ttk.Label(ref_frame, text="255 (Claro)", font=('Arial', 8)).pack(side=tk.RIGHT)
+        
+        # Botones de valores predefinidos
+        ttk.Label(control_frame, text="Valores rápidos:", 
+                font=('Arial', 9, 'bold')).pack(pady=(10, 5))
+        
+        preset_frame = ttk.Frame(control_frame)
+        preset_frame.pack()
+        
+        def set_preset(valor):
+            umbral_var.set(valor)
+            actualizar_preview(valor)
+        
+        for valor in [50, 100, 128, 150, 200]:
+            ttk.Button(preset_frame, text=str(valor), width=6,
+                    command=lambda v=valor: set_preset(v)).pack(side=tk.LEFT, padx=2)
+        
+        # Frame de botones finales
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(pady=(15, 5))
+        
+        # Variable para guardar el resultado
+        resultado_umbral = [None]
+        
+        def aplicar_y_cerrar():
+            resultado_umbral[0] = umbral_var.get()
+            # Desactivar el scroll del mouse antes de cerrar
+            canvas_scroll.unbind_all("<MouseWheel>")
+            dialog.destroy()
+        
+        def cancelar():
+            resultado_umbral[0] = None
+            # Desactivar el scroll del mouse antes de cerrar
+            canvas_scroll.unbind_all("<MouseWheel>")
+            dialog.destroy()
+        
+        ttk.Button(button_frame, text="✓ Aplicar", 
+                command=aplicar_y_cerrar, width=12).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="✗ Cancelar", 
+                command=cancelar, width=12).pack(side=tk.LEFT, padx=5)
+        
+        # Agregar indicador de scroll (opcional pero útil)
+        hint_label = ttk.Label(main_frame, 
+                            text="💡 Usa la rueda del mouse para desplazarte",
+                            font=('Arial', 8, 'italic'),
+                            foreground='gray')
+        hint_label.pack(pady=(5, 0))
+        
+        # Mostrar vista previa inicial
+        actualizar_preview(128)
+        
+        # **IMPORTANTE: Hacer scroll al inicio**
+        canvas_scroll.yview_moveto(0)
+        
+        # Esperar a que se cierre el diálogo
+        dialog.wait_window()
+        
+        # Si se aplicó, ejecutar binarización
+        if resultado_umbral[0] is not None:
+            self.ejecutar_binarizacion(resultado_umbral[0], None)
+ 
+
+
+
     def ejecutar_binarizacion(self, umbral, dialog):
         """Aplica la binarización con el umbral dado."""
-        dialog.destroy()
+        if dialog is not None:  # AGREGAR ESTA LÍNEA
+            dialog.destroy()
         
         imagen_a_binarizar = None
         if self.imagen_trabajo_actual is not None:
@@ -1522,7 +1731,7 @@ class MatplotlibApp:
         
         except Exception as e:
             messagebox.showerror("Error", f"Error al binarizar: {e}")
-
+    
     # --- EJECUTORES DE OPERACIONES ESPECIALES ---
     
     def ejecutar_operacion_simple(self, operacion):
